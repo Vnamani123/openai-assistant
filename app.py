@@ -8,11 +8,11 @@ import pytesseract
 st.markdown(
     """
     📝 **How to Use the StudentSim -  A simulated student at office hours to practice and humanize TA responses.**
-    - Start with a Hello.
-    - When you are feel ready, type and submit "I am Done" or "I'm Done" for your evaluation.
-    - Recieve a detailed evaluation of tone, rating, and social cues improvements.
-    - Upload an image or text file if you want it analyzed.
-    - Practice speaking to your student with just faster responses. 
+   - Begin with a friendly greeting, like "Hello."
+   - Engage in conversation with the student, assuming your role as the TA for the given scenario.
+   - When you feel ready, type and submit “I am Done” or “I’m Done” to receive your evaluation.
+   - Expect a detailed evaluation, including feedback on tone, rating, and suggestions for improving social cues.
+   - If you want add on an image or text file, feel free to upload it for analysis.
     """,
     unsafe_allow_html=True,
 )
