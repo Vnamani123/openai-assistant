@@ -123,22 +123,22 @@ if uploaded_file is not None:
 # --- Process Chat Message ---
 user_input = st.session_state.user_input
 
+# Process new input if provided
+if user_input:
+    result = get_assistant_response(user_input)
+    st.header("CS Student", divider="rainbow")
+    st.text(result)
+    
 # Append extracted file text to the chat input if available
 if file_text:
     user_input = f"{user_input}\n\n[Extracted File Content]: {file_text}"
 
-# Display chat history
-for chat in st.session_state.chat_history:
+# Display chat history with new messages at the top
+for chat in reversed(st.session_state.chat_history):
     if chat["role"] == "User":
-        st.markdown(f"**🧑 User:** {chat['content']}")
+        st.markdown(f"**🎓 TA:** {chat['content']}")
     else:
-        st.markdown(f"**🤖 Assistant:** {chat['content']}")
-
-# Process new input if provided
-if user_input:
-    result = get_assistant_response(user_input)
-    st.header("Assistant :blue[cool] :pizza:", divider="rainbow")
-    st.text(result)
+        st.markdown(f"**💻 CS Student :** {chat['content']}")
 
 # === Small Credits at Bottom ===
 st.markdown("\n---\n💖 *Made in colloboration with CETL and College of Computing* ")
