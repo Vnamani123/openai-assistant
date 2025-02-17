@@ -11,6 +11,7 @@ st.markdown(
    - Begin with a friendly greeting, like "Hello."
    - Engage in conversation with the student, assuming your role as the TA for the given scenario.
    - When you feel ready, type and submit “I am Done” or “I’m Done” to receive your evaluation.
+   - Ready for another scenario, message "Another Scenario". 
    - Expect a detailed evaluation, including feedback on tone, rating, and suggestions for improving social cues.
    - If you want add on an image or text file, feel free to upload it for analysis.
     """,
