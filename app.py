@@ -2,7 +2,6 @@ import streamlit as st
 import time
 from openai import OpenAI
 from PIL import Image, ImageEnhance, ImageFilter
-import pytesseract
 from PyPDF2 import PdfReader
 
 # === Clear chat history on every refresh ===
@@ -67,28 +66,6 @@ def get_assistant_response(user_input=""):
     messages = client.beta.threads.messages.list(thread_id=assistant_thread.id, order="asc")
     return messages.data[-1].content[0].text.value
 
-    # Create a new message in the thread after the previous run is complete
-    client.beta.threads.messages.create(thread_id=assistant_thread.id, role="user", content=user_input)
-
-    # Trigger assistant run
-    run = client.beta.threads.runs.create(thread_id=assistant_thread.id, assistant_id=assistant_id)
-    run = wait_on_run(run, assistant_thread)  # Wait for the new run to complete
-
-    # Retrieve messages
-    messages = client.beta.threads.messages.list(thread_id=assistant_thread.id, order="asc")
-    return messages.data[-1].content[0].text.value
-
-    # Create a new message in the thread
-    client.beta.threads.messages.create(thread_id=assistant_thread.id, role="user", content=user_input)
-
-    # Trigger assistant run
-    run = client.beta.threads.runs.create(thread_id=assistant_thread.id, assistant_id=assistant_id)
-    run = wait_on_run(run, assistant_thread)
-
-    # Retrieve messages
-    messages = client.beta.threads.messages.list(thread_id=assistant_thread.id, order="asc")
-    return messages.data[-1].content[0].text.value
-
 # Initialize session state variables for chat
 if "user_input" not in st.session_state:
     st.session_state.user_input = ""
@@ -103,10 +80,10 @@ if 'image_processed' not in st.session_state:
 
 if uploaded_file is not None and not st.session_state.image_processed:
     if uploaded_file.type.startswith("image/"):
-        # Process image using OCR (Preprocessing added)
+        # Process image (no OCR here)
         image = Image.open(uploaded_file)
         
-        # Preprocessing the image for better OCR accuracy
+        # Preprocessing the image
         image = image.convert("L")  # Convert to grayscale
         image = image.filter(ImageFilter.MedianFilter())  # Apply a median filter
         enhancer = ImageEnhance.Contrast(image)
@@ -116,21 +93,11 @@ if uploaded_file is not None and not st.session_state.image_processed:
         image_placeholder = st.empty()  # Placeholder to remove the image later
         image_placeholder.image(image, caption="Uploaded Image", use_container_width=True)
 
-        # Extract text using pytesseract
-        file_text = pytesseract.image_to_string(image)
+        # Set the flag to indicate that the image has been processed
+        st.session_state.image_processed = True
 
-        # Debug the OCR output
-        if file_text.strip():
-            st.write(f"Extracted Text from Image: {file_text}")  # Debugging step
-            st.session_state.user_input = file_text  # Store text from image in session state to process it
-            # Clear the image
-            image_placeholder.empty()
-
-            # Set the flag to indicate that the image has been processed
-            st.session_state.image_processed = True
-
-            # Clear the uploaded file from the uploader (prevents re-uploading)
-            uploaded_file = None
+        # Clear the uploaded file from the uploader (prevents re-uploading)
+        uploaded_file = None
     else:
         # Process text or PDF file
         if uploaded_file.type == "text/plain":
