@@ -3,6 +3,7 @@ import time
 from openai import OpenAI
 from PIL import Image, ImageEnhance, ImageFilter
 import pytesseract
+from PyPDF2 import PdfReader
 
 # === Clear chat history on every refresh ===
 if 'chat_history' not in st.session_state:
@@ -46,11 +47,36 @@ def wait_on_run(run, thread):
     return run
 
 def get_assistant_response(user_input=""):
+    # Check for any active run in the thread
     active_run = client.beta.threads.runs.list(thread_id=assistant_thread.id)
+    
     if active_run.data:
         latest_run = active_run.data[0]
         if latest_run.status in ["queued", "in_progress"]:
-            wait_on_run(latest_run, assistant_thread)
+            # Wait for the previous run to complete before proceeding
+            wait_on_run(latest_run, assistant_thread)  # Call wait_on_run to ensure the run is completed
+
+    # Create a new message after the previous run is complete
+    client.beta.threads.messages.create(thread_id=assistant_thread.id, role="user", content=user_input)
+
+    # Trigger assistant run
+    run = client.beta.threads.runs.create(thread_id=assistant_thread.id, assistant_id=assistant_id)
+    run = wait_on_run(run, assistant_thread)  # Wait for the new run to finish
+
+    # Retrieve messages after the new run has completed
+    messages = client.beta.threads.messages.list(thread_id=assistant_thread.id, order="asc")
+    return messages.data[-1].content[0].text.value
+
+    # Create a new message in the thread after the previous run is complete
+    client.beta.threads.messages.create(thread_id=assistant_thread.id, role="user", content=user_input)
+
+    # Trigger assistant run
+    run = client.beta.threads.runs.create(thread_id=assistant_thread.id, assistant_id=assistant_id)
+    run = wait_on_run(run, assistant_thread)  # Wait for the new run to complete
+
+    # Retrieve messages
+    messages = client.beta.threads.messages.list(thread_id=assistant_thread.id, order="asc")
+    return messages.data[-1].content[0].text.value
 
     # Create a new message in the thread
     client.beta.threads.messages.create(thread_id=assistant_thread.id, role="user", content=user_input)
@@ -93,8 +119,9 @@ if uploaded_file is not None and not st.session_state.image_processed:
         # Extract text using pytesseract
         file_text = pytesseract.image_to_string(image)
 
-        # If text is extracted, process it and remove the image
+        # Debug the OCR output
         if file_text.strip():
+            st.write(f"Extracted Text from Image: {file_text}")  # Debugging step
             st.session_state.user_input = file_text  # Store text from image in session state to process it
             # Clear the image
             image_placeholder.empty()
@@ -110,11 +137,13 @@ if uploaded_file is not None and not st.session_state.image_processed:
             file_text = uploaded_file.read().decode("utf-8")
         elif uploaded_file.type == "application/pdf":
             try:
-                from PyPDF2 import PdfReader
                 pdf_reader = PdfReader(uploaded_file)
                 file_text = "\n".join([page.extract_text() for page in pdf_reader.pages if page.extract_text()])
-            except ImportError:
-                st.warning("Install PyPDF2: pip install PyPDF2")
+                # Debugging step for PDF text extraction
+                if file_text.strip():
+                    st.write(f"Extracted Text from PDF: {file_text}")
+            except Exception as e:
+                st.warning(f"Error reading PDF: {e}")
 
 # --- Process Chat Message ---
 user_input = st.session_state.user_input
@@ -125,21 +154,35 @@ if user_input:
     st.session_state.chat_history.append({"role": "User", "content": user_input})
     st.session_state.chat_history.append({"role": "Assistant", "content": result})
 
-# --- Chat Input Section ---
-def handle_user_input():
-    # Capture the user input and clear the input field after submission
-    st.session_state.user_input = st.session_state.query
-    st.session_state.query = ""
+# Create a container for chat messages
+chat_container = st.container()
 
-# Create text input field for user to type
-st.text_input("Message to the Student:", key="query", on_change=handle_user_input)
+# Display chat messages dynamically
+with chat_container:
+    for chat in st.session_state.chat_history:
+        if chat["role"] == "User":
+            st.markdown(f"**🎓 TA:** {chat['content']}")
+        else:
+            st.markdown(f"**💻 CS Student:** {chat['content']}")
 
-# Display chat history
-for chat in st.session_state.chat_history:
-    if chat["role"] == "User":
-        st.markdown(f"**🎓 TA:** {chat['content']}")
-    else:
-        st.markdown(f"**💻 CS Student:** {chat['content']}")
+# Add an empty space for scrolling
+scroll_placeholder = st.empty()
 
-# === Small Credits at Bottom ===
-st.markdown("\n---\n💖 *Made in collaboration with CETL and College of Computing* ")
+# === User Input at the Bottom ===
+user_message = st.chat_input("Message to the Student:")
+
+if user_message:
+    # Append user message
+    st.session_state.chat_history.append({"role": "User", "content": user_message})
+
+    # Get AI response
+    result = get_assistant_response(user_message)
+
+    # Append AI response
+    st.session_state.chat_history.append({"role": "Assistant", "content": result})
+
+    # Force UI update to move chat down
+    scroll_placeholder.empty()
+
+    # Rerun app to display latest messages
+    st.rerun()
